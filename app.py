@@ -62,7 +62,8 @@ st.markdown("""
 
 # Sidebar: Credentials & System Info
 with st.sidebar:
-    st.image("https://www.fursys.com/resources/images/common/logo.png", width=140)
+    st.markdown("<h2 style='color: #1E3A8A; font-weight: 800; margin: 0; padding-top: 0;'>🏢 FURSYS</h2>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 0.85rem; color: #64748B; margin-bottom: 1rem;'>퍼시스그룹 생산기술 자동화</div>", unsafe_allow_html=True)
     st.markdown("### 🔐 PLM 계정 설정")
     plm_id = st.text_input("PLM 아이디", placeholder="예: yeongjo_kwon", help="사내 PLM 로그인 아이디")
     plm_pw = st.text_input("PLM 비밀번호", type="password", placeholder="비밀번호 입력", help="사내 PLM 로그인 비밀번호")
