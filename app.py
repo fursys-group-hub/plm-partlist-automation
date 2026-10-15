@@ -136,19 +136,34 @@ if start_clicked:
         logs = []
         def log_msg(msg):
             logs.append(msg)
-            # Display last 8 log lines
-            log_placeholder.code('\n'.join(logs[-8:]), language="bash")
+            # Display last 10 log lines
+            log_placeholder.code('\n'.join(logs[-10:]), language="bash")
+
+        class LogCapturer:
+            def __init__(self, callback, original_stdout):
+                self.callback = callback
+                self.original_stdout = original_stdout
+            def write(self, s):
+                self.original_stdout.write(s)
+                line = s.strip()
+                if line:
+                    self.callback(line)
+            def flush(self):
+                self.original_stdout.flush()
 
         driver = None
         generated_files = []
+        orig_stdout = sys.stdout
+        sys.stdout = LogCapturer(log_msg, orig_stdout)
         
         try:
             log_msg(f"[1/4] 브라우저 드라이버 시작 중... ({browser_type.upper()}{', 헤드리스' if headless_mode else ''})")
             driver = setup_driver(browser=browser_type, headless=headless_mode)
             
             log_msg("[2/4] PLM 시스템 자동 로그인 시도 중...")
-            login(driver, "https://plm.fursys.com", plm_id, plm_pw)
-            log_msg("-> PLM 로그인 성공!")
+            PLM_URL = "https://plm.fursys.com/Windchill/platform/main#"
+            login(driver, PLM_URL, plm_id, plm_pw)
+            log_msg("-> PLM 로그인 단계 완료!")
             
             total = len(target_codes)
             for idx, code in enumerate(target_codes):
@@ -174,6 +189,7 @@ if start_clicked:
             import traceback
             st.code(traceback.format_exc())
         finally:
+            sys.stdout = orig_stdout
             if driver:
                 try:
                     driver.quit()

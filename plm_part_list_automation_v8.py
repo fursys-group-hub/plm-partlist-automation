@@ -118,42 +118,46 @@ def login(driver, url, username, password):
     """
     PLM 최초 1회 로그인 로직
     """
+    import base64
+    from urllib.parse import urlparse, quote
+
     print("[1] PLM 접속 중...")
     
-    # URL에 아이디/비밀번호를 포함하여 접속하면 브라우저가 해당 도메인에 대한 인증 정보를 
-    # 세션 동안 캐시하게 되므로, 이후 새 창(팝업)이 열려도 추가 로그인 창이 뜨지 않습니다.
-    from urllib.parse import urlparse, quote
+    # 1. Chromium 계열(Edge, Chrome)용 CDP 헤더 사전 주입
+    # Basic Auth 다이얼로그나 리다이렉트 시 인증정보 손실 방지
+    try:
+        auth_bytes = f"{username}:{password}".encode('utf-8')
+        auth_token = base64.b64encode(auth_bytes).decode('utf-8')
+        driver.execute_cdp_cmd('Network.enable', {})
+        driver.execute_cdp_cmd('Network.setExtraHTTPHeaders', {
+            'headers': {'Authorization': f'Basic {auth_token}'}
+        })
+    except Exception:
+        pass
+
+    # 2. URL 방식 인증 결합
     parsed = urlparse(url)
     auth_url = f"{parsed.scheme}://{quote(username)}:{quote(password)}@{parsed.netloc}{parsed.path}"
     if parsed.query: auth_url += f"?{parsed.query}"
     if parsed.fragment: auth_url += f"#{parsed.fragment}"
 
+    print(f"  -> 페이지 요청: {url}")
     driver.get(auth_url)
     print(f"  -> 페이지 요청 완료")
 
-    print("  -> 메인 페이지 로드 완료 대기 중 (최대 60초)...")
+    print("  -> 메인 페이지 로드 대기 중 (최대 20초)...")
     main_loaded = False
-    main_selectors = [
-        (By.XPATH, "//*[contains(text(), 'BOM')]"),
-        (By.XPATH, "//*[contains(text(), 'PARTLIST')]"),
-        (By.ID,    "mainMenu"),
-        (By.ID,    "GNB"),
-        (By.XPATH, "//*[contains(@class, 'gnb') or contains(@class, 'GNB')]"),
-    ]
-    for selector in main_selectors:
-        try:
-            WebDriverWait(driver, 60).until(
-                EC.presence_of_element_located(selector)
-            )
-            main_loaded = True
-            print(f"  -> 메인 페이지 로드 완료! ({selector[1]})")
-            break
-        except Exception:
-            pass
+    combined_xpath = "//*[contains(text(), 'BOM') or contains(text(), 'PARTLIST') or @id='mainMenu' or @id='GNB' or contains(@class, 'gnb') or contains(@class, 'GNB')]"
+    try:
+        WebDriverWait(driver, 20).until(
+            EC.presence_of_element_located((By.XPATH, combined_xpath))
+        )
+        main_loaded = True
+        print("  -> 메인 페이지 로드 완료!")
+    except Exception:
+        print("  [안내] 메인 메뉴 로드 대기 시간 초과, 현재 상태에서 다음 단계 진행...")
 
-    if not main_loaded:
-        print("  [경고] 메인 페이지 자동 감지 실패. 현재 상태에서 계속 진행합니다.")
-    time.sleep(2)
+    time.sleep(1)
 
 
 def process_single_code(driver, target_code):
