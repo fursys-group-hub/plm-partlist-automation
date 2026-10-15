@@ -165,10 +165,18 @@ if start_clicked:
             login(driver, PLM_URL, plm_id, plm_pw)
             log_msg("-> PLM 로그인 단계 완료!")
             
+            main_window_handle = driver.current_window_handle
+            
             total = len(target_codes)
             for idx, code in enumerate(target_codes):
                 status_box.update(label=f"[{idx+1}/{total}] 단품코드 '{code}' BOM 조회 및 부품리스트 작성 중...")
                 log_msg(f"\n--- [{idx+1}/{total}] 단품코드 '{code}' 처리 시작 ---")
+                
+                try:
+                    driver.switch_to.window(main_window_handle)
+                    driver.switch_to.default_content()
+                except Exception:
+                    pass
                 
                 res = process_single_code(driver, code)
                 if res:
@@ -178,6 +186,20 @@ if start_clicked:
                     log_msg(f"-> '{code}' 부품리스트 생성 완료: {os.path.basename(excel_path)}")
                 else:
                     log_msg(f"-> [오류] '{code}' 처리 실패 (단품코드 또는 PLM 상태 확인 필요)")
+                    
+                # 파생 팝업 창 닫기 및 메인 창으로 복귀
+                for handle in driver.window_handles:
+                    if handle != main_window_handle:
+                        try:
+                            driver.switch_to.window(handle)
+                            driver.close()
+                        except Exception:
+                            pass
+                try:
+                    driver.switch_to.window(main_window_handle)
+                    driver.switch_to.default_content()
+                except Exception:
+                    pass
                     
                 progress_bar.progress((idx + 1) / total)
                 
