@@ -67,12 +67,21 @@ with st.sidebar:
     plm_id = st.text_input("PLM 아이디", placeholder="예: yeongjo_kwon", help="사내 PLM 로그인 아이디")
     plm_pw = st.text_input("PLM 비밀번호", type="password", placeholder="비밀번호 입력", help="사내 PLM 로그인 비밀번호")
     
+    is_linux = (sys.platform != 'win32')
+    if not is_linux:
+        with st.expander("🛠️ 실행 옵션 (로컬 테스트용)", expanded=False):
+            headless_mode = st.checkbox("브라우저 백그라운드 실행 (Headless)", value=False, help="체크 해제 시 실제 브라우저가 화면에 열려 작업 진행 과정을 직접 볼 수 있습니다.")
+            browser_type = st.selectbox("사용 브라우저", ["edge", "chrome"], index=0)
+    else:
+        headless_mode = True
+        browser_type = 'chrome'
+        
     st.divider()
     st.markdown("### ⚙️ 시스템 정보")
     st.markdown("- **규격 버전**: `V8.0`")
     st.markdown("- **정렬 규칙**: 사내 표준 5단계 버킷 정렬")
     st.markdown("- **지원 규격**: A4 가로 2페이지 (메인 + 조립_용접)")
-    st.markdown("- **환경**: 사내 AI Hub 클라우드 서버")
+    st.markdown(f"- **실행 환경**: {'사내 AI Hub 클라우드 서버 (Linux)' if is_linux else '로컬 PC (Windows)'}")
     
     st.caption("© 2026 Fursys Group. All rights reserved.")
 
@@ -133,8 +142,8 @@ if start_clicked:
         generated_files = []
         
         try:
-            log_msg("[1/4] 헤드리스 브라우저 드라이버 시작 중...")
-            driver = setup_driver(browser='chrome', headless=True)
+            log_msg(f"[1/4] 브라우저 드라이버 시작 중... ({browser_type.upper()}{', 헤드리스' if headless_mode else ''})")
+            driver = setup_driver(browser=browser_type, headless=headless_mode)
             
             log_msg("[2/4] PLM 시스템 자동 로그인 시도 중...")
             login(driver, "https://plm.fursys.com", plm_id, plm_pw)
