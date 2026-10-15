@@ -186,7 +186,66 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 
 ---
 
-## 5. 부록: Antigravity IDE 사용 팁
+## 5. 2026-10-15 오후 작업 내역: 사내 AI Hub 웹 앱 구축 및 로컬 테스트
+
+사내 AI Hub / Coolify 클라우드 배포를 위한 웹 애플리케이션 구축, GitHub 조직 연동, 도커화 및 로컬 웹 브라우저 검증을 완료했습니다.
+
+### 5.1 사내 GitHub 연동 및 리포지토리 구성
+1. **GitHub 계정 세팅 및 사내 조직 가입**:
+   - 계정명: `fg-yeongjo-kwon` (사내 표기 원칙 준수)
+   - 이름: `권영조` / 이메일: `yeongjo_kwon@fursys.com` (인증 완료)
+   - 사내 공식 조직 가입 완료: `fursys-group-hub`
+2. **원격 저장소 생성 및 푸시**:
+   - 리포지토리 주소: `https://github.com/fursys-group-hub/plm-partlist-automation`
+   - 브랜치: `main`
+   - `.gitignore` 정돈: 불필요한 캐시, 구버전(v2~v7) 스크립트, 임시 산출물 제외, V8 핵심 코드 및 `template.xlsx`만 추적.
+
+### 5.2 Streamlit 기반 웹 애플리케이션 (`app.py`) 개발
+1. **사내 UI/UX 브랜딩**:
+   - 퍼시스 블루(#1E3A8A) 테마, 반응형 레이아웃, 이용 가이드 및 5단계 버킷 정렬 규칙 안내 탑재.
+2. **기능 구현**:
+   - **PLM 로그인 계정 입력**: 사이드바에서 아이디/비밀번호 안전 입력.
+   - **단품코드 다중 일괄 입력**: 엑셀 열 복사-붙여넣기 지원 (줄바꿈/쉼표 자동 파싱).
+   - **실시간 작업 현황(Live Streaming Log)**: Python stdout과 웹 UI를 실시간 연결하여 현재 진행 단계(`[1/4] 브라우저 드라이버 시작`, `[2/4] 로그인`, `BOM 조회`, `그리드 추출`, `서식 작성`)를 한눈에 모니터링 가능.
+   - **결과물 다운로드**: 단품별 개별 Excel/PDF 다운로드 및 복수 단품 시 **전체 일괄 ZIP 압축 다운로드** 지원.
+   - **로컬 테스트 옵션 탑재**: Windows 환경에서 브라우저 화면 표시(Headless 해제) 및 Edge/Chrome 선택 토글 제공.
+
+### 5.3 컨테이너화 (`Dockerfile`) 구성
+- 사내 Coolify(Linux) 환경에서 실행될 수 있도록 `python:3.11-slim` 기반 이미지 작성.
+- Selenium용 Chromium 및 Chromedriver 설치 및 환경 변수 자동 바인딩.
+
+### 5.4 로컬 웹 테스트 검증 및 버그 조치 완료
+1. **테스트 진행 (`http://localhost:8502`)**:
+   - 테스트 대상: `HSKD1420LR`, `IPP00AQ01A`, `IFP00AQ04A` 3종 일괄 실행.
+2. **1번 단품 (`HSKD1420LR`) 결과**: **100% 정상 완료**
+   - PLM 자동 로그인 $\rightarrow$ BOM 데이터 추출 $\rightarrow$ V8 서식 적용 $\rightarrow$ Excel(`HSKD1420LR_..._PartList.xlsx`) 및 PDF(`HSKD1420LR_..._PartList.pdf`, 2페이지 가로) 생성 완벽 성공.
+3. **2번 단품 (`IPP00AQ01A`) 타임아웃 원인 규명 및 조치**:
+   - **현상**: `process_single_code` 261행 `erpCode` 대기 중 `TimeoutException` 발생.
+   - **원인 분석**: 1번 단품 완료 후 PLM이 띄운 자식 팝업 창(`partListDetailPopup`)에 브라우저 포커스가 머물러 있어, 메인 윈도우의 `erpCode` 입력창을 찾지 못함 (데스크톱 GUI 버전에는 있던 팝업 닫기 및 `main_window_handle` 복귀 로직이 `app.py` 루프에서 누락됨).
+   - **조치 사항 (`app.py`)**:
+     - `main_window_handle` 저장 후, 매 단품 시작 전 메인 윈도우 및 최상위 컨텐트로 강제 전환(`driver.switch_to.window(main_window_handle)`).
+     - 각 단품 완료 후 파생된 모든 자식 팝업 창 자동 닫기(`driver.close()`) 및 메인 창 복귀 로직 추가.
+     - GitHub 원격 저장소(`main`)에 즉시 반영 푸시 완료 (`commit: b61e3a5`).
+
+---
+
+## 6. 다음 작업 계획 (내일 출근 후 바로 진행)
+
+1. **웹 애플리케이션 다중 단품 로컬 연속 재검증**:
+   - `python -m streamlit run app.py --server.port 8502` 실행 상태 확인.
+   - 단품코드 2~3종(`IPP00AQ01A`, `DSCC0145V` 등) 일괄 입력 후 팝업 닫기 및 2번째 단품 연속 생성 정상 완료 여부 확인.
+2. **사내 AI Hub Appstore 최종 등록**:
+   - 등록 페이지: `https://ai-hub.fursys.com/appstore/register`
+   - 리포지토리: `https://github.com/fursys-group-hub/plm-partlist-automation`
+   - 포트 번호: `8501` (Coolify 서버 기본)
+   - 앱 명칭: `PLM 부품리스트 자동 생성기 (V8)`
+   - 앱 설명 및 오늘 캡처한 웹 UI 스크린샷 첨부 후 등록 승인 요청.
+3. **배포 후 라이브 테스트**:
+   - Coolify 배포 URL 발급 후 웹 브라우저에서 최종 실무 부서 배포 확인.
+
+---
+
+## 7. 부록: Antigravity IDE 사용 팁
 
 - **도구 자동 승인(Auto-Approval) 설정**:
   명령어 실행 시 매번 나타나는 컨펌 창을 건너뛰고 자율 실행하려면:
