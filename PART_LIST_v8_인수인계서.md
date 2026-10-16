@@ -263,19 +263,49 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 - **GitHub 저장소**: `https://github.com/fursys-group-hub/plm-partlist-automation` (main 브랜치 최신화 완료)
 - **프리뷰 이미지**: 배포 버튼이 숨겨진 고화질 UI 스크린샷 2장 등록 완료 ([ai_hub_preview](file:///c:/Users/yeongjo_kwon/PART%20LIST_automation/ai_hub_preview))
 
+### 6.5 V8.0 독립 실행 파일 (`.exe`) 빌드 완료
+- **빌드 방식**: PyInstaller 기반 단일 실행 파일 (`--onefile`, `template.xlsx` 서식 및 의존성 전체 번들링)
+- **생성 파일**: `PARTLIST_Automation_v8.0.exe` (약 149 MB)
+- **저장 위치**:
+  - 작업 폴더 루트: [PARTLIST_Automation_v8.0.exe](file:///c:/Users/yeongjo_kwon/PART%20LIST_automation/PARTLIST_Automation_v8.0.exe)
+  - 배포 폴더: [dist/PARTLIST_Automation_v8.0.exe](file:///c:/Users/yeongjo_kwon/PART%20LIST_automation/dist/PARTLIST_Automation_v8.0.exe)
+- **사용법**: 파이썬 환경이 없는 일반 업무용 PC에서도 더블클릭만으로 즉시 구동 가능 (다중 단품 연속 실행 팝업 안전 정리 및 암호화 계정 기억 기능 탑재).
+
+### 6.6 계정 보안 및 Git 저장소 격리 검증 완료
+- **로컬 자격 증명 분리**: 로컬 편의를 위한 계정 저장(`login_config.json`)은 프로젝트 내부가 아닌 사용자 개인 로컬 디렉토리(`%APPDATA%\PLM_PartList_Automation\`)에만 저장됨.
+- **GitHub 보안 보장**: `.gitignore`에 `login_config.json`, `.env`, `*.exe`가 모두 등록되어 있어, GitHub 원격 저장소 및 사내 배포 서버에는 개인 계정이나 비밀번호가 전혀 포함되지 않음 (공용 서버 실행 시 모든 사용자에게 깨끗한 빈 입력창으로 제공됨).
+
 ---
 
-## 7. 향후 배포 진행 절차 (구독 승인 후)
+## 7. 향후 배포 진행 절차 (Claude 사용 승인 후 재개 가이드)
 
-1. **사내 AI 구독(Claude) 승인 대기 중**:
-   - 현재 사내 AI 도구 구독 신청(`Claude` [신청중] [승인대기]) 상태.
-2. **승인 완료 후 셀프 배포 단계**:
-   - 터미널에서 `claude` 실행 $\rightarrow$ `/login` 진행 (구독 활성화된 사내 계정으로 연동)
-   - `fursys-deploy-hub 지금 설치돼 있는지 확인하고 /deploy 실행해줘` 입력
-   - 주소명 입력(예: `plm-partlist`) $\rightarrow$ 사내 배포 완료(`https://plm-partlist.app1.hub.fursys.com`)
-3. **대안 지름길 (AI추진팀 승인 배포)**:
-   - 구독 승인을 기다리지 않고 즉시 서버 배포를 희망할 경우, 사내 `#ask-ai추진팀` 채널에 아래 메시지 남기기:
-     > *"AI Hub에 **339번 앱(부품리스트 자동화 프로그램)** 등록 완료했습니다. 서버 배포 및 주소 발급 요청드립니다!"*
+사내 AI 도구(`Claude`) 사용 승인이 완료된 후, 다음 절차를 거쳐 AI Hub 배포를 최종 마무리합니다:
+
+### 1단계: Claude 구독 연동
+1. 에디터 하단 터미널(또는 새 PowerShell)에서 아래 명령 실행:
+   ```bash
+   claude
+   ```
+2. 로그인 명령 실행:
+   ```text
+   /login
+   ```
+3. 브라우저가 열리면 구독 승인된 사내 계정(`yeongjo_kwon@fursys.com`)으로 로그인 및 승인(Authorize) 완료.
+
+### 2단계: 사내 배포 트리거 (`/deploy`)
+1. Claude Code 프롬프트에 아래 명령 입력:
+   ```text
+   fursys-deploy-hub 지금 설치돼 있는지 확인하고 /deploy 실행해줘
+   ```
+2. 주소 앞부분 입력 요청 시:
+   ```text
+   plm-partlist
+   ```
+3. 약 2~3분간 사내 서버(Coolify)가 Dockerfile을 기반으로 자동 빌드 및 컨테이너를 구동합니다.
+4. 배포가 완료되면 사내 전용 주소(`https://plm-partlist.app1.hub.fursys.com`)가 발급되며, AI Hub 앱 관리 페이지(`apps/339`) 상태가 `[배포 완료 (운영 중)]`으로 변경됩니다.
+
+> 💡 **참고: AI추진팀 직접 승인 옵션**  
+> Claude 승인 대기가 길어질 경우, 사내 `#ask-ai추진팀` 채널에 *"AI Hub에 339번 앱(부품리스트 자동화 프로그램) 등록 완료했습니다. 서버 배포 부탁드립니다!"* 라고 요청하면 관리자가 수동 승인/배포할 수도 있습니다.
 
 ---
 
@@ -284,6 +314,7 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 - **도구 자동 승인(Auto-Approval) 설정**:
   명령어 실행 시 매번 나타나는 컨펌 창을 건너뛰고 자율 실행하려면:
   `좌측 하단 ⚙️ 설정(Settings) > Agent Settings > Tool Execution Policy` 를 **`always-proceed`** 로 변경.
+
 
 
 
