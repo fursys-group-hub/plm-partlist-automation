@@ -69,21 +69,21 @@ st.markdown("""
         background-color: #F0F7FF;
         border: 1px solid #BFDBFE;
         border-radius: 8px;
-        padding: 0.8rem 1.15rem;
+        padding: 0 1.25rem;
         height: 220px;
         box-sizing: border-box;
         display: flex;
         flex-direction: column;
-        justify-content: space-between;
+        justify-content: center;
     }
     .guide-list {
         margin: 0;
         padding-left: 1.25rem;
-        font-size: 0.875rem;
+        font-size: 0.85rem;
         color: #1E293B;
     }
     .guide-list li {
-        margin-bottom: 0.28rem;
+        margin-bottom: 0.52rem;
         line-height: 1.35;
     }
     .guide-list li:last-child {
@@ -92,11 +92,12 @@ st.markdown("""
     .guide-item-title {
         font-weight: 700;
         color: #0F172A;
+        font-size: 0.875rem;
     }
     .guide-item-desc {
         color: #475569;
         font-size: 0.81rem;
-        margin-top: 1px;
+        margin-top: 2px;
         line-height: 1.3;
     }
     .link-badge {
@@ -127,7 +128,7 @@ st.markdown("""
 # Sidebar: Credentials & System Info
 with st.sidebar:
     st.markdown("<h2 style='color: #1E3A8A; font-weight: 800; margin: 0; padding-top: 0;'>🏢 FURSYS</h2>", unsafe_allow_html=True)
-    st.markdown("<div style='font-size: 0.85rem; color: #64748B; margin-bottom: 1rem;'>퍼시스그룹 생산기술 자동화</div>", unsafe_allow_html=True)
+    st.markdown("<div style='font-size: 0.85rem; color: #64748B; margin-bottom: 1rem;'>퍼시스그룹 업무 자동화</div>", unsafe_allow_html=True)
     # Windows 환경에서 기존 저장된 자격 증명이 있을 경우 기본값으로 로드
     default_id = ""
     default_pw = ""
@@ -192,10 +193,8 @@ with col_info:
     <div class="guide-card">
         <ol start="0" class="guide-list">
             <li>
-                <span class="guide-item-title">깔끔한 부품리스트 생성을 위해선 사전 준비 작업이 필요합니다.</span>
-                <a href="https://fursys.atlassian.net/wiki/external/YTc0MzUzOWYxMDIxNDZjY2I4MDExMWM5N2M3MGE3ZmI" target="_blank" class="link-badge">
-                    <span>🔗 가이드 링크 ↗</span>
-                </a>
+                <div class="guide-item-title">깔끔한 부품리스트 생성을 위해선 사전 준비 작업이 필요합니다.</div>
+                <div class="guide-item-desc">: 사전 준비 작업 가이드 <a href="https://fursys.atlassian.net/wiki/external/YTc0MzUzOWYxMDIxNDZjY2I4MDExMWM5N2M3MGE3ZmI" target="_blank" class="link-badge"><span>🔗 가이드 링크 ↗</span></a></div>
             </li>
             <li>
                 <div class="guide-item-title">단품코드 입력</div>
