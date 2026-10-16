@@ -32,6 +32,10 @@ st.markdown("""
         color: #1E3A8A;
         margin-bottom: 1.2rem;
     }
+    /* Deploy 버튼 숨김 (사내 배포 환경 최적화) */
+    .stDeployButton, [data-testid="stDeployButton"], .stAppDeployButton, [data-testid="stAppDeployButton"] {
+        display: none !important;
+    }
     .sub-header {
         font-size: 1.05rem;
         color: #4B5563;
