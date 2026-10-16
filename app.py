@@ -30,7 +30,7 @@ st.markdown("""
         font-size: 2.2rem;
         font-weight: 700;
         color: #1E3A8A;
-        margin-bottom: 0.2rem;
+        margin-bottom: 1.2rem;
     }
     .sub-header {
         font-size: 1.05rem;
@@ -57,6 +57,70 @@ st.markdown("""
         background-color: #1D4ED8;
         color: white;
     }
+    .guide-label {
+        font-size: 14px;
+        color: #31333F;
+        margin-bottom: 0.5rem;
+        font-weight: 400;
+        line-height: 1.5;
+        height: 21px;
+    }
+    .guide-card {
+        background-color: #F0F7FF;
+        border: 1px solid #BFDBFE;
+        border-radius: 8px;
+        padding: 0.8rem 1.15rem;
+        height: 220px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    .guide-list {
+        margin: 0;
+        padding-left: 1.25rem;
+        font-size: 0.875rem;
+        color: #1E293B;
+    }
+    .guide-list li {
+        margin-bottom: 0.28rem;
+        line-height: 1.35;
+    }
+    .guide-list li:last-child {
+        margin-bottom: 0;
+    }
+    .guide-item-title {
+        font-weight: 700;
+        color: #0F172A;
+    }
+    .guide-item-desc {
+        color: #475569;
+        font-size: 0.81rem;
+        margin-top: 1px;
+        line-height: 1.3;
+    }
+    .link-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        background-color: #2563EB;
+        color: #FFFFFF !important;
+        font-size: 0.72rem;
+        font-weight: 600;
+        padding: 2px 7px;
+        border-radius: 4px;
+        text-decoration: none !important;
+        vertical-align: middle;
+        margin-left: 6px;
+        box-shadow: 0 1px 2px rgba(37,99,235,0.25);
+        transition: all 0.15s ease;
+    }
+    .link-badge:hover {
+        background-color: #1D4ED8;
+        color: #FFFFFF !important;
+        box-shadow: 0 2px 4px rgba(29,78,216,0.3);
+        transform: translateY(-1px);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,11 +128,33 @@ st.markdown("""
 with st.sidebar:
     st.markdown("<h2 style='color: #1E3A8A; font-weight: 800; margin: 0; padding-top: 0;'>🏢 FURSYS</h2>", unsafe_allow_html=True)
     st.markdown("<div style='font-size: 0.85rem; color: #64748B; margin-bottom: 1rem;'>퍼시스그룹 생산기술 자동화</div>", unsafe_allow_html=True)
-    st.markdown("### 🔐 PLM 계정 설정")
-    plm_id = st.text_input("PLM 아이디", placeholder="예: yeongjo_kwon", help="사내 PLM 로그인 아이디")
-    plm_pw = st.text_input("PLM 비밀번호", type="password", placeholder="비밀번호 입력", help="사내 PLM 로그인 비밀번호")
-    
+    # Windows 환경에서 기존 저장된 자격 증명이 있을 경우 기본값으로 로드
+    default_id = ""
+    default_pw = ""
     is_linux = (sys.platform != 'win32')
+    if not is_linux:
+        config_path = os.path.join(
+            os.environ.get("APPDATA", os.path.expanduser("~")),
+            "PLM_PartList_Automation",
+            "login_config.json"
+        )
+        if os.path.exists(config_path):
+            try:
+                import json, base64
+                with open(config_path, "r", encoding="utf-8") as f:
+                    cfg = json.load(f)
+                if cfg.get("remember", False):
+                    default_id = cfg.get("id", "")
+                    saved_pw_b64 = cfg.get("pw", "")
+                    if saved_pw_b64:
+                        default_pw = base64.b64decode(saved_pw_b64.encode("utf-8")).decode("utf-8")
+            except Exception:
+                pass
+
+    st.markdown("### 🔐 PLM 계정 설정")
+    plm_id = st.text_input("PLM 아이디", value=default_id, placeholder="예: yeongjo_kwon", help="사내 PLM 로그인 아이디")
+    plm_pw = st.text_input("PLM 비밀번호", value=default_pw, type="password", placeholder="비밀번호 입력", help="사내 PLM 로그인 비밀번호")
+
     if not is_linux:
         with st.expander("🛠️ 실행 옵션 (로컬 테스트용)", expanded=False):
             headless_mode = st.checkbox("브라우저 백그라운드 실행 (Headless)", value=False, help="체크 해제 시 실제 브라우저가 화면에 열려 작업 진행 과정을 직접 볼 수 있습니다.")
@@ -79,19 +165,15 @@ with st.sidebar:
         
     st.divider()
     st.markdown("### ⚙️ 시스템 정보")
-    st.markdown("- **규격 버전**: `V8.0`")
-    st.markdown("- **정렬 규칙**: 사내 표준 5단계 버킷 정렬")
-    st.markdown("- **지원 규격**: A4 가로 2페이지 (메인 + 조립_용접)")
-    st.markdown(f"- **실행 환경**: {'사내 AI Hub 클라우드 서버 (Linux)' if is_linux else '로컬 PC (Windows)'}")
+    st.markdown("- **버전**: `V8.0`")
     
     st.caption("© 2026 Fursys Group. All rights reserved.")
 
 # Main Header
 st.markdown('<div class="main-header">📋 PLM 부품리스트 자동 생성기</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-header">단품코드를 입력하면 PLM BOM을 실시간 조회하여 사내 표준 서식에 맞춘 엑셀 및 PDF 부품리스트를 자동으로 생성합니다.</div>', unsafe_allow_html=True)
 
 # Main Form
-col_input, col_info = st.columns([2, 1])
+col_input, col_info = st.columns([1, 1])
 
 with col_input:
     st.markdown("#### 📝 단품코드 목록 입력")
@@ -105,12 +187,31 @@ with col_input:
 
 with col_info:
     st.markdown("#### 💡 이용 가이드")
-    st.info("""
-    1. **단품코드 입력**: 여러 개의 단품코드를 엑셀에서 복사해 그대로 붙여넣을 수 있습니다.
-    2. **조립/용접 자동 전개**: 품목명에 `(빌드)`나 `(웰드)`가 포함된 품목은 별도의 `[조립_용접]` 시트에 자동 전개됩니다.
-    3. **출력 페이지 자동 분할**: 조립/용접 자재가 있으면 2페이지(`1/2`, `2/2`), 없으면 1페이지(`1/1`)로 자동 분할 생성됩니다.
-    4. **결과 다운로드**: 작업 완료 후 생성된 엑셀과 PDF를 즉시 다운로드하실 수 있습니다.
-    """)
+    st.markdown('<div class="guide-label">사전 준비 작업 및 시스템 이용 절차 안내</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="guide-card">
+        <ol start="0" class="guide-list">
+            <li>
+                <span class="guide-item-title">깔끔한 부품리스트 생성을 위해선 사전 준비 작업이 필요합니다.</span>
+                <a href="https://fursys.atlassian.net/wiki/external/YTc0MzUzOWYxMDIxNDZjY2I4MDExMWM5N2M3MGE3ZmI" target="_blank" class="link-badge">
+                    <span>🔗 가이드 링크 ↗</span>
+                </a>
+            </li>
+            <li>
+                <div class="guide-item-title">단품코드 입력</div>
+                <div class="guide-item-desc">: 직접입력 or 여러 개의 단품코드를 엑셀에서 복사해 그대로 붙여넣을 수 있습니다.</div>
+            </li>
+            <li>
+                <div class="guide-item-title">부품리스트 자동 생성 시작 버튼 클릭</div>
+                <div class="guide-item-desc">: 버튼 클릭 후 대기해 주세요.</div>
+            </li>
+            <li>
+                <div class="guide-item-title">결과 다운로드</div>
+                <div class="guide-item-desc">: 작업 완료 후 생성된 엑셀과 PDF를 즉시 다운로드하실 수 있습니다.</div>
+            </li>
+        </ol>
+    </div>
+    """, unsafe_allow_html=True)
 
 # Execution logic
 if start_clicked:
@@ -172,34 +273,62 @@ if start_clicked:
                 status_box.update(label=f"[{idx+1}/{total}] 단품코드 '{code}' BOM 조회 및 부품리스트 작성 중...")
                 log_msg(f"\n--- [{idx+1}/{total}] 단품코드 '{code}' 처리 시작 ---")
                 
+                # 시작 전 남아있는 자식 팝업 정리 및 메인 창 컨텍스트 복귀
                 try:
-                    driver.switch_to.window(main_window_handle)
+                    for handle in list(driver.window_handles):
+                        if handle != main_window_handle:
+                            try:
+                                driver.switch_to.window(handle)
+                                try:
+                                    driver.switch_to.alert.accept()
+                                except Exception:
+                                    pass
+                                driver.close()
+                            except Exception:
+                                pass
+                    if main_window_handle in driver.window_handles:
+                        driver.switch_to.window(main_window_handle)
+                    elif driver.window_handles:
+                        main_window_handle = driver.window_handles[0]
+                        driver.switch_to.window(main_window_handle)
                     driver.switch_to.default_content()
                 except Exception:
                     pass
                 
-                res = process_single_code(driver, code)
-                if res:
-                    excel_path = res[0]
-                    pdf_path = excel_path.replace(".xlsx", ".pdf")
-                    generated_files.append((code, excel_path, pdf_path if os.path.exists(pdf_path) else None))
-                    log_msg(f"-> '{code}' 부품리스트 생성 완료: {os.path.basename(excel_path)}")
-                else:
-                    log_msg(f"-> [오류] '{code}' 처리 실패 (단품코드 또는 PLM 상태 확인 필요)")
-                    
-                # 파생 팝업 창 닫기 및 메인 창으로 복귀
-                for handle in driver.window_handles:
-                    if handle != main_window_handle:
-                        try:
-                            driver.switch_to.window(handle)
-                            driver.close()
-                        except Exception:
-                            pass
                 try:
-                    driver.switch_to.window(main_window_handle)
-                    driver.switch_to.default_content()
-                except Exception:
-                    pass
+                    res = process_single_code(driver, code)
+                    if res:
+                        excel_path = res[0]
+                        pdf_path = excel_path.replace(".xlsx", ".pdf")
+                        generated_files.append((code, excel_path, pdf_path if os.path.exists(pdf_path) else None))
+                        log_msg(f"-> '{code}' 부품리스트 생성 완료: {os.path.basename(excel_path)}")
+                    else:
+                        log_msg(f"-> [오류] '{code}' 처리 실패 (단품코드 또는 PLM 상태 확인 필요)")
+                except Exception as code_err:
+                    log_msg(f"-> [오류] '{code}' 처리 중 예외 발생: {code_err}")
+                finally:
+                    # 파생 팝업 창 닫기 및 메인 창으로 안전 복귀
+                    for handle in list(driver.window_handles):
+                        if handle != main_window_handle:
+                            try:
+                                driver.switch_to.window(handle)
+                                try:
+                                    driver.switch_to.alert.accept()
+                                except Exception:
+                                    pass
+                                driver.close()
+                            except Exception:
+                                pass
+                    try:
+                        if main_window_handle in driver.window_handles:
+                            driver.switch_to.window(main_window_handle)
+                        elif driver.window_handles:
+                            main_window_handle = driver.window_handles[0]
+                            driver.switch_to.window(main_window_handle)
+                        driver.switch_to.default_content()
+                    except Exception:
+                        pass
+                    time.sleep(1)
                     
                 progress_bar.progress((idx + 1) / total)
                 

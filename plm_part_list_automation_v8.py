@@ -172,7 +172,11 @@ def process_single_code(driver, target_code):
     driver.switch_to.default_content()
     is_already_on_partlist = False
     try:
-        driver.switch_to.frame("body")
+        body_frames = driver.find_elements(By.XPATH, "//iframe[@id='body' or @name='body']")
+        if body_frames:
+            driver.switch_to.frame(body_frames[0])
+        else:
+            driver.switch_to.frame("body")
         if driver.find_elements(By.NAME, "erpCode"):
             is_already_on_partlist = True
             print("  -> 이미 PARTLIST 관리 화면에 위치해 있습니다. (메뉴 재진입 생략)")
@@ -243,6 +247,10 @@ def process_single_code(driver, target_code):
         if init_btn and init_btn[0].is_displayed():
             driver.execute_script("arguments[0].click();", init_btn[0])
             time.sleep(0.2)
+            try:
+                driver.switch_to.alert.accept()
+            except Exception:
+                pass
     except Exception:
         pass
 
@@ -261,11 +269,24 @@ def process_single_code(driver, target_code):
     time.sleep(0.3)
 
     # 4-2. 단품코드 입력
-    try:
-        code_input = WebDriverWait(driver, 15).until(
-            EC.visibility_of_element_located((By.NAME, "erpCode"))
-        )
-    except Exception:
+    code_input = None
+    for attempt in range(2):
+        try:
+            code_input = WebDriverWait(driver, 15 if attempt == 0 else 5).until(
+                EC.visibility_of_element_located((By.NAME, "erpCode"))
+            )
+            if code_input:
+                break
+        except Exception:
+            if attempt == 0:
+                try:
+                    driver.switch_to.default_content()
+                    WebDriverWait(driver, 5).until(
+                        EC.frame_to_be_available_and_switch_to_it((By.ID, "body"))
+                    )
+                except Exception:
+                    pass
+    if not code_input:
         code_input = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.NAME, "erpCode"))
         )
