@@ -229,27 +229,62 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 
 ---
 
-## 6. 다음 작업 계획 (내일 출근 후 바로 진행)
+## 6. 2026-10-16 작업 내역 및 AI Hub 앱 등록 완료
 
-1. **웹 애플리케이션 다중 단품 로컬 연속 재검증**:
-   - `python -m streamlit run app.py --server.port 8502` 실행 상태 확인.
-   - 단품코드 2~3종(`IPP00AQ01A`, `DSCC0145V` 등) 일괄 입력 후 팝업 닫기 및 2번째 단품 연속 생성 정상 완료 여부 확인.
-2. **사내 AI Hub Appstore 최종 등록**:
-   - 등록 페이지: `https://ai-hub.fursys.com/appstore/register`
-   - 리포지토리: `https://github.com/fursys-group-hub/plm-partlist-automation`
-   - 포트 번호: `8501` (Coolify 서버 기본)
-   - 앱 명칭: `PLM 부품리스트 자동 생성기 (V8)`
-   - 앱 설명 및 오늘 캡처한 웹 UI 스크린샷 첨부 후 등록 승인 요청.
-3. **배포 후 라이브 테스트**:
-   - Coolify 배포 URL 발급 후 웹 브라우저에서 최종 실무 부서 배포 확인.
+10월 16일 진행된 다중 단품 연속 실행 안정화, 웹 UI/UX 최적화, 다운로드 상태 유지 버그 해결 및 사내 AI Hub 등록 결과입니다:
+
+### 6.1 다중 단품 연속 실행 안정화 및 에러 격리 (`app.py`, `plm_part_list_automation_v8.py`)
+- **다중 실행 루프 강화**: 단품별 `try...except...finally` 구조를 도입하여 중간 1개 단품에서 오류가 발생해도 후속 단품 작업이 중단되지 않고 끝까지 완료되도록 개선.
+- **자식 팝업 정리 및 핸들러 복귀**: 단품 처리 전/후 잔류 팝업 창 자동 닫기 및 메인 윈도우 컨텍스트 복귀 로직을 상시 적용.
+- **로컬 계정 자동 로드**: Windows 환경에서 `%APPDATA%\PLM_PartList_Automation\login_config.json` 계정 자동 불러오기 지원.
+
+### 6.2 웹 애플리케이션 UI/UX 최적화 (`app.py`)
+- **조직 명칭 변경**: 사이드바 타이틀을 '퍼시스그룹 생산기술 자동화' $\rightarrow$ **'퍼시스그룹 업무 자동화'** 로 변경.
+- **시스템 정보 단순화**: 사이드바에 불필요한 세부 스펙 제거하고 **`버전: V8.0`** 만 깔끔하게 표기.
+- **이용 가이드 4단계 표준화 & 디자인 개선**:
+  - 0단계(사전 준비)부터 3단계(다운로드)까지 번호별 간격을 일정하게 통일하고 상하 여백 대칭 배치.
+  - 사전 준비 위키 링크를 모던한 사각 링크 뱃지(`🔗 가이드 링크 ↗`)로 스타일링 (`Atlassian Wiki` 연결).
+- **상단 Deploy 버튼 숨김**: Streamlit 기본 배포 버튼을 CSS로 완전 은폐 처리하여 사용자 혼선 차단.
+
+### 6.3 결과 다운로드 세션 상태(`st.session_state`) 유지 및 오류 해결
+- **문제 원인**:
+  - `st.download_button` 클릭 시 Streamlit 스크립트가 재실행(Rerun)되면서, 시작 조건문(`if start_clicked:`) 안의 다운로드 UI가 통째로 사라지는 현상 발생.
+  - 이로 인해 개별 파일 다운로드 버튼 컴포넌트가 언마운트되며 서버의 임시 파일 주소가 만료되어 브라우저에서 `사용할 수 없는 파일 (b04d...txt)` 에러 발생.
+- **조치 사항**:
+  - `st.session_state['generated_files']` 및 `st.session_state['zip_buffer']`를 도입하여 작업 결과와 압축 데이터를 세션 메모리에 영구 보존.
+  - 다운로드 카드 섹션을 독립 분리하여 몇 번 다운로드를 클릭하더라도 화면과 파일 링크가 사라지지 않고 항상 유지되도록 수정 완료.
+
+### 6.4 사내 AI Hub Appstore 등록 완료
+- **등록 페이지**: `https://ai-hub.fursys.com/workspace/apps/339`
+- **앱 ID**: **`339`**
+- **앱 이름**: **`부품리스트 자동화 프로그램 (PLM기반)`**
+- **업무 도메인**: **`생산·품질`** (외주 생산업체 배포 및 단품/포장 단위 자재 검수 목적)
+- **앱 유형**: **`수집·자동화`**, **`업무 관리`**
+- **GitHub 저장소**: `https://github.com/fursys-group-hub/plm-partlist-automation` (main 브랜치 최신화 완료)
+- **프리뷰 이미지**: 배포 버튼이 숨겨진 고화질 UI 스크린샷 2장 등록 완료 ([ai_hub_preview](file:///c:/Users/yeongjo_kwon/PART%20LIST_automation/ai_hub_preview))
 
 ---
 
-## 7. 부록: Antigravity IDE 사용 팁
+## 7. 향후 배포 진행 절차 (구독 승인 후)
+
+1. **사내 AI 구독(Claude) 승인 대기 중**:
+   - 현재 사내 AI 도구 구독 신청(`Claude` [신청중] [승인대기]) 상태.
+2. **승인 완료 후 셀프 배포 단계**:
+   - 터미널에서 `claude` 실행 $\rightarrow$ `/login` 진행 (구독 활성화된 사내 계정으로 연동)
+   - `fursys-deploy-hub 지금 설치돼 있는지 확인하고 /deploy 실행해줘` 입력
+   - 주소명 입력(예: `plm-partlist`) $\rightarrow$ 사내 배포 완료(`https://plm-partlist.app1.hub.fursys.com`)
+3. **대안 지름길 (AI추진팀 승인 배포)**:
+   - 구독 승인을 기다리지 않고 즉시 서버 배포를 희망할 경우, 사내 `#ask-ai추진팀` 채널에 아래 메시지 남기기:
+     > *"AI Hub에 **339번 앱(부품리스트 자동화 프로그램)** 등록 완료했습니다. 서버 배포 및 주소 발급 요청드립니다!"*
+
+---
+
+## 8. 부록: Antigravity IDE 사용 팁
 
 - **도구 자동 승인(Auto-Approval) 설정**:
   명령어 실행 시 매번 나타나는 컨펌 창을 건너뛰고 자율 실행하려면:
   `좌측 하단 ⚙️ 설정(Settings) > Agent Settings > Tool Execution Policy` 를 **`always-proceed`** 로 변경.
+
 
 
 
