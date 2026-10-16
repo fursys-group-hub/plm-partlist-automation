@@ -216,6 +216,38 @@ with col_info:
     </div>
     """, unsafe_allow_html=True)
 
+# ==========================================
+# Session State Initialization for Persistent Downloads
+# ==========================================
+if 'generated_files' not in st.session_state:
+    st.session_state['generated_files'] = []
+    # 앱 재로딩 시 최근 생성된 부품리스트 파일을 감지하여 다운로드 섹션 유지
+    try:
+        recent = []
+        for f in os.listdir("."):
+            if f.endswith("_PartList.xlsx") and not f.startswith("~$"):
+                code = f.split("_")[0]
+                xl_p = os.path.abspath(f)
+                pdf_p = xl_p.replace(".xlsx", ".pdf")
+                recent.append((code, xl_p, pdf_p if os.path.exists(pdf_p) else None))
+        if recent:
+            recent.sort(key=lambda x: os.path.getmtime(x[1]), reverse=True)
+            st.session_state['generated_files'] = recent[:10]
+            zip_buf = io.BytesIO()
+            with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                for c, xl, pdf in st.session_state['generated_files']:
+                    if xl and os.path.exists(xl):
+                        zf.write(xl, os.path.basename(xl))
+                    if pdf and os.path.exists(pdf):
+                        zf.write(pdf, os.path.basename(pdf))
+            st.session_state['zip_buffer'] = zip_buf.getvalue()
+            st.session_state['zip_name'] = f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip"
+    except Exception:
+        pass
+
+if 'zip_buffer' not in st.session_state:
+    st.session_state['zip_buffer'] = None
+
 # Execution logic
 if start_clicked:
     if not plm_id or not plm_pw:
@@ -223,6 +255,10 @@ if start_clicked:
     elif not raw_codes.strip():
         st.error("⚠️ 생성할 단품코드를 최소 1개 이상 입력해 주세요.")
     else:
+        # 새 작업 시작 시 이전 세션 결과 초기화
+        st.session_state['generated_files'] = []
+        st.session_state['zip_buffer'] = None
+
         # Parse target codes
         lines = [c.strip().upper() for c in raw_codes.replace(',', '\n').split('\n') if c.strip()]
         # Remove duplicates while preserving order
@@ -337,6 +373,20 @@ if start_clicked:
                 
             status_box.update(label="🎉 모든 단품코드 처리 완료!", state="complete", expanded=False)
             
+            # 생성된 파일 목록 및 ZIP을 세션 상태에 저장하여 다운로드 클릭 시 화면 유지 보장
+            if generated_files:
+                st.session_state['generated_files'] = generated_files
+                if len(generated_files) > 1 or any(f[2] for f in generated_files):
+                    zip_buf = io.BytesIO()
+                    with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for c, xl, pdf in generated_files:
+                            if xl and os.path.exists(xl):
+                                zf.write(xl, os.path.basename(xl))
+                            if pdf and os.path.exists(pdf):
+                                zf.write(pdf, os.path.basename(pdf))
+                    st.session_state['zip_buffer'] = zip_buf.getvalue()
+                    st.session_state['zip_name'] = f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip"
+            
         except Exception as e:
             status_box.update(label=f"❌ 처리 중 에러 발생: {e}", state="error")
             st.error(f"오류 상세: {e}")
@@ -350,54 +400,54 @@ if start_clicked:
                 except Exception:
                     pass
 
-        # Results & Download Section
-        if generated_files:
-            st.divider()
-            st.markdown("### 📥 생성된 부품리스트 다운로드")
-            
-            # ZIP download for all files if multiple
-            if len(generated_files) > 1 or any(f[2] for f in generated_files):
-                zip_buffer = io.BytesIO()
-                with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-                    for code, xl, pdf in generated_files:
-                        if xl and os.path.exists(xl):
-                            zip_file.write(xl, os.path.basename(xl))
-                        if pdf and os.path.exists(pdf):
-                            zip_file.write(pdf, os.path.basename(pdf))
-                zip_buffer.seek(0)
-                
-                st.download_button(
-                    label="📦 전체 결과 파일 일괄 다운로드 (ZIP)",
-                    data=zip_buffer,
-                    file_name=f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip",
-                    mime="application/zip",
-                    use_container_width=True
-                )
-                st.markdown("<br>", unsafe_allow_html=True)
-            
-            # Individual file download cards
-            for code, xl, pdf in generated_files:
-                with st.expander(f"📄 {code} 부품리스트 파일", expanded=True):
-                    c1, c2 = st.columns(2)
-                    with c1:
-                        if xl and os.path.exists(xl):
-                            with open(xl, "rb") as f:
-                                st.download_button(
-                                    label=f"📊 Excel 다운로드 ({os.path.basename(xl)})",
-                                    data=f.read(),
-                                    file_name=os.path.basename(xl),
-                                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                    key=f"dl_xl_{code}"
-                                )
-                    with c2:
-                        if pdf and os.path.exists(pdf):
-                            with open(pdf, "rb") as f:
-                                st.download_button(
-                                    label=f"📑 PDF 다운로드 ({os.path.basename(pdf)})",
-                                    data=f.read(),
-                                    file_name=os.path.basename(pdf),
-                                    mime="application/pdf",
-                                    key=f"dl_pdf_{code}"
-                                )
-                        else:
-                            st.caption("(PDF는 서버 환경에 따라 생성되지 않을 수 있으며, 엑셀에서 바로 인쇄 가능합니다.)")
+# ==========================================
+# Results & Download Section (Persistent via Session State)
+# ==========================================
+if st.session_state.get('generated_files'):
+    results = st.session_state['generated_files']
+    st.divider()
+    st.markdown("### 📥 생성된 부품리스트 다운로드")
+    
+    # 1. 전체 ZIP 일괄 다운로드
+    if st.session_state.get('zip_buffer'):
+        st.download_button(
+            label="📦 전체 결과 파일 일괄 다운로드 (ZIP)",
+            data=st.session_state['zip_buffer'],
+            file_name=st.session_state.get('zip_name', f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip"),
+            mime="application/zip",
+            use_container_width=True,
+            key="dl_zip_all"
+        )
+        st.markdown("<br>", unsafe_allow_html=True)
+    
+    # 2. 단품별 개별 파일 다운로드
+    for code, xl, pdf in results:
+        with st.expander(f"📄 {code} 부품리스트 파일", expanded=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                if xl and os.path.exists(xl):
+                    with open(xl, "rb") as f:
+                        xl_bytes = f.read()
+                    st.download_button(
+                        label=f"📊 Excel 다운로드 ({os.path.basename(xl)})",
+                        data=xl_bytes,
+                        file_name=os.path.basename(xl),
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key=f"dl_xl_{code}"
+                    )
+                else:
+                    st.warning("엑셀 파일을 찾을 수 없습니다.")
+            with c2:
+                if pdf and os.path.exists(pdf):
+                    with open(pdf, "rb") as f:
+                        pdf_bytes = f.read()
+                    st.download_button(
+                        label=f"📑 PDF 다운로드 ({os.path.basename(pdf)})",
+                        data=pdf_bytes,
+                        file_name=os.path.basename(pdf),
+                        mime="application/pdf",
+                        key=f"dl_pdf_{code}"
+                    )
+                else:
+                    st.caption("(PDF 파일이 생성되지 않은 단품입니다.)")
+
