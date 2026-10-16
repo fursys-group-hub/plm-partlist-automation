@@ -94,7 +94,7 @@ class App(ctk.CTk):
         self.console_textbox.configure(state="disabled")
         
         # Footer Label (Version info)
-        self.footer_label = ctk.CTkLabel(self.main_frame, text="업데이트: 2026.10.12 | 버전: V8", font=ctk.CTkFont(family="Pretendard", size=13), text_color="#5577AA")
+        self.footer_label = ctk.CTkLabel(self.main_frame, text="업데이트: 2026.10.16 | 버전: V8.0", font=ctk.CTkFont(family="Pretendard", size=13), text_color="#5577AA")
         self.footer_label.grid(row=8, column=0, pady=(5, 0), sticky="e")
         
         # Redirect stdout
@@ -183,27 +183,56 @@ class App(ctk.CTk):
                 print(f"[{code_idx+1}/{len(target_codes)}] '{code}' 작업 시작")
                 print(f"{'='*40}")
                 
-                try:
-                    driver.switch_to.default_content()
-                    process_single_code(driver, code)
-                except Exception as e:
-                    print(f"[오류] '{code}' 처리 중 에러 발생: {e}")
-                
-                for handle in driver.window_handles:
+                # 시작 전 남아있는 자식 팝업 정리 및 메인 창 복귀
+                for handle in list(driver.window_handles):
                     if handle != main_window_handle:
                         try:
                             driver.switch_to.window(handle)
+                            try:
+                                driver.switch_to.alert.accept()
+                            except Exception:
+                                pass
                             driver.close()
                         except Exception:
                             pass
-                
                 try:
-                    driver.switch_to.window(main_window_handle)
+                    if main_window_handle in driver.window_handles:
+                        driver.switch_to.window(main_window_handle)
+                    elif driver.window_handles:
+                        main_window_handle = driver.window_handles[0]
+                        driver.switch_to.window(main_window_handle)
+                    driver.switch_to.default_content()
+                except Exception:
+                    pass
+
+                try:
+                    process_single_code(driver, code)
                 except Exception as e:
-                    print(f"[치명적 오류] 메인 창 손실. {e}")
-                    break
-                    
-                time.sleep(1)
+                    print(f"[오류] '{code}' 처리 중 에러 발생: {e}")
+                finally:
+                    # 완료 후 잔류 팝업 창 정리
+                    for handle in list(driver.window_handles):
+                        if handle != main_window_handle:
+                            try:
+                                driver.switch_to.window(handle)
+                                try:
+                                    driver.switch_to.alert.accept()
+                                except Exception:
+                                    pass
+                                driver.close()
+                            except Exception:
+                                pass
+                    try:
+                        if main_window_handle in driver.window_handles:
+                            driver.switch_to.window(main_window_handle)
+                        elif driver.window_handles:
+                            main_window_handle = driver.window_handles[0]
+                            driver.switch_to.window(main_window_handle)
+                        driver.switch_to.default_content()
+                    except Exception as e:
+                        print(f"[치명적 오류] 메인 창 손실: {e}")
+                        break
+                    time.sleep(1)
                 
             print("\n>>> 모든 일괄 작업이 완료되었습니다! 브라우저를 닫습니다.")
         except Exception as final_e:
