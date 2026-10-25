@@ -1,6 +1,6 @@
 # PLM PART LIST Automation - Version 8 인수인계서
 
-**작성일자**: 2026-10-13 (초안) / **최종 업데이트**: 2026-10-15  
+**작성일자**: 2026-10-13 (초안) / **최종 업데이트**: 2026-10-26 (사내 서버 배포 완료)  
 **담당자**: 권영조 (yeongjo_kwon@fursys.com)  
 **작업 환경**: Windows, Python 3.11, OpenPyXL, Win32COM (pywin32), Selenium, CustomTkinter
 
@@ -277,35 +277,25 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 
 ---
 
-## 7. 향후 배포 진행 절차 (Claude 사용 승인 후 재개 가이드)
+## 7. 사내 서버 배포 완료 및 운영 정보 (2026-10-26 완료)
 
-사내 AI 도구(`Claude`) 사용 승인이 완료된 후, 다음 절차를 거쳐 AI Hub 배포를 최종 마무리합니다:
+2026년 10월 26일, 사내 AI 도구(`Claude`) 사용 승인 완료 후 배포 전 보안/환경 검토 통과 및 사내 전용 서버(Coolify) 배포를 최종 완료했습니다:
 
-### 1단계: Claude 구독 연동
-1. 에디터 하단 터미널(또는 새 PowerShell)에서 아래 명령 실행:
-   ```bash
-   claude
-   ```
-2. 로그인 명령 실행:
-   ```text
-   /login
-   ```
-3. 브라우저가 열리면 구독 승인된 사내 계정(`yeongjo_kwon@fursys.com`)으로 로그인 및 승인(Authorize) 완료.
-
-### 2단계: 사내 배포 트리거 (`/deploy`)
-1. Claude Code 프롬프트에 아래 명령 입력:
-   ```text
-   fursys-deploy-hub 지금 설치돼 있는지 확인하고 /deploy 실행해줘
-   ```
-2. 주소 앞부분 입력 요청 시:
-   ```text
-   plm-partlist
-   ```
-3. 약 2~3분간 사내 서버(Coolify)가 Dockerfile을 기반으로 자동 빌드 및 컨테이너를 구동합니다.
-4. 배포가 완료되면 사내 전용 주소(`https://plm-partlist.app1.hub.fursys.com`)가 발급되며, AI Hub 앱 관리 페이지(`apps/339`) 상태가 `[배포 완료 (운영 중)]`으로 변경됩니다.
-
-> 💡 **참고: AI추진팀 직접 승인 옵션**  
-> Claude 승인 대기가 길어질 경우, 사내 `#ask-ai추진팀` 채널에 *"AI Hub에 339번 앱(부품리스트 자동화 프로그램) 등록 완료했습니다. 서버 배포 부탁드립니다!"* 라고 요청하면 관리자가 수동 승인/배포할 수도 있습니다.
+### 7.1 배포 진행 내역
+1. **Claude Code 인증 및 도구 세팅**:
+   - 사내 승인 계정(`yeongjo_kwon@fursys.com`, `Fursys Group 4`)으로 OAuth 연동 완료.
+   - 사내 배포 플러그인 `fursys-deploy-hub (v4.14.0)` 설치 및 활성화.
+2. **배포 전 보안 및 환경 검토 (`/deploy-check`, `/deploy-fix`)**:
+   - `app.py`: 최근 파일 자동 복구 로직을 로컬(Windows) 환경으로 한정 격리하여 타 사용자 결과물 노출 방지(보안 등급 통과).
+   - `Dockerfile`: `HEALTHCHECK` 대상을 `127.0.0.1`로 수정하고, `ENTRYPOINT`에 `--server.headless=true` 옵션을 추가하여 리눅스 컨테이너 환경에서 프롬프트 대기 없이 즉시 기동되도록 안정화.
+   - 최종 검사 결과: **치명 0, 높음 0 (보안 통과 ✅ / 배포 준비 완료 ✅)**
+   - 온라인 검토 리포트: `https://deploy.hub.fursys.com/report/zsuoXazHV8nQAQogek3FWS10lg9qvwqx`
+3. **사내 서버 배포 (`/deploy`)**:
+   - 서브도메인: `plm-partlist`
+   - **사내 전용 접속 주소**: **`https://plm-partlist.app3.hub.fursys.com`**
+   - 사내 계정 SSO 보호 연동 적용 완료.
+4. **향후 운영 및 지속적 배포 (CI/CD)**:
+   - 향후 코드 수정 시 추가 배포 명령어 실행 없이, GitHub 원격 저장소(`main` 브랜치)에 **`git push`** 만 수행하면 사내 Coolify 서버가 자동으로 변경 사항을 감지하여 재빌드 및 무중단 배포를 진행합니다.
 
 ---
 
