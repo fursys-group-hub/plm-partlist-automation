@@ -222,28 +222,29 @@ with col_info:
 if 'generated_files' not in st.session_state:
     st.session_state['generated_files'] = []
     # 앱 재로딩 시 최근 생성된 부품리스트 파일을 감지하여 다운로드 섹션 유지
-    try:
-        recent = []
-        for f in os.listdir("."):
-            if f.endswith("_PartList.xlsx") and not f.startswith("~$"):
-                code = f.split("_")[0]
-                xl_p = os.path.abspath(f)
-                pdf_p = xl_p.replace(".xlsx", ".pdf")
-                recent.append((code, xl_p, pdf_p if os.path.exists(pdf_p) else None))
-        if recent:
-            recent.sort(key=lambda x: os.path.getmtime(x[1]), reverse=True)
-            st.session_state['generated_files'] = recent[:10]
-            zip_buf = io.BytesIO()
-            with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                for c, xl, pdf in st.session_state['generated_files']:
-                    if xl and os.path.exists(xl):
-                        zf.write(xl, os.path.basename(xl))
-                    if pdf and os.path.exists(pdf):
-                        zf.write(pdf, os.path.basename(pdf))
-            st.session_state['zip_buffer'] = zip_buf.getvalue()
-            st.session_state['zip_name'] = f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip"
-    except Exception:
-        pass
+    if not is_linux:
+        try:
+            recent = []
+            for f in os.listdir("."):
+                if f.endswith("_PartList.xlsx") and not f.startswith("~$"):
+                    code = f.split("_")[0]
+                    xl_p = os.path.abspath(f)
+                    pdf_p = xl_p.replace(".xlsx", ".pdf")
+                    recent.append((code, xl_p, pdf_p if os.path.exists(pdf_p) else None))
+            if recent:
+                recent.sort(key=lambda x: os.path.getmtime(x[1]), reverse=True)
+                st.session_state['generated_files'] = recent[:10]
+                zip_buf = io.BytesIO()
+                with zipfile.ZipFile(zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for c, xl, pdf in st.session_state['generated_files']:
+                        if xl and os.path.exists(xl):
+                            zf.write(xl, os.path.basename(xl))
+                        if pdf and os.path.exists(pdf):
+                            zf.write(pdf, os.path.basename(pdf))
+                st.session_state['zip_buffer'] = zip_buf.getvalue()
+                st.session_state['zip_name'] = f"Fursys_PartLists_{time.strftime('%Y%m%d_%H%M%S')}.zip"
+        except Exception:
+            pass
 
 if 'zip_buffer' not in st.session_state:
     st.session_state['zip_buffer'] = None
