@@ -15,6 +15,7 @@ login_config.json
 # IDE
 .vscode/
 .idea/
+.fursys-deploy-hub/
 
 # Distribution & Build
 build/
