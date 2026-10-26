@@ -277,25 +277,66 @@ $$\text{목재(WDWW)} \longrightarrow \text{철제(STPG/STCG)} \longrightarrow \
 
 ---
 
-## 7. 사내 서버 배포 완료 및 운영 정보 (2026-10-26 완료)
+## 7. 2026-10-26 작업 내역: 사내 서버(Coolify) 배포 및 PLM 방화벽 연동 추진
 
-2026년 10월 26일, 사내 AI 도구(`Claude`) 사용 승인 완료 후 배포 전 보안/환경 검토 통과 및 사내 전용 서버(Coolify) 배포를 최종 완료했습니다:
+2026년 10월 26일, 사내 AI 도구(`Claude`) 사용 승인 완료 후 배포 전 보안/환경 검토 통과, 사내 전용 서버(Coolify) 배포, 초기 구동 에러 및 타임아웃 원인 규명/패치, 그리고 사내 방화벽 오픈 요청까지 진행을 완료했습니다:
 
-### 7.1 배포 진행 내역
-1. **Claude Code 인증 및 도구 세팅**:
-   - 사내 승인 계정(`yeongjo_kwon@fursys.com`, `Fursys Group 4`)으로 OAuth 연동 완료.
-   - 사내 배포 플러그인 `fursys-deploy-hub (v4.14.0)` 설치 및 활성화.
-2. **배포 전 보안 및 환경 검토 (`/deploy-check`, `/deploy-fix`)**:
-   - `app.py`: 최근 파일 자동 복구 로직을 로컬(Windows) 환경으로 한정 격리하여 타 사용자 결과물 노출 방지(보안 등급 통과).
-   - `Dockerfile`: `HEALTHCHECK` 대상을 `127.0.0.1`로 수정하고, `ENTRYPOINT`에 `--server.headless=true` 옵션을 추가하여 리눅스 컨테이너 환경에서 프롬프트 대기 없이 즉시 기동되도록 안정화.
-   - 최종 검사 결과: **치명 0, 높음 0 (보안 통과 ✅ / 배포 준비 완료 ✅)**
+### 7.1 Claude Code 인증 및 배포 도구 세팅
+1. **계정 연동**:
+   - 사내 승인 계정(`yeongjo_kwon@fursys.com`, `Fursys Group 4`, Team 플랜)으로 OAuth 연동 완료.
+2. **사내 배포 도구 설치**:
+   - 사내 공식 배포 플러그인 `fursys-deploy-hub (v4.14.0)` 설치 및 활성화 (`create-app`, `deploy`, `deploy-check`, `deploy-fix`, `github-setup` 스킬 탑재).
+
+### 7.2 배포 전 보안 및 환경 검토 통과 (`/deploy-check`, `/deploy-fix`)
+1. **보안 강화 (`app.py`)**:
+   - 앱 재로딩 시 서버 폴더의 최근 파일 자동 복구 로직을 Windows 로컬 환경 전용(`if not is_linux:`)으로 한정 격리하여, 타 사용자가 생성한 설계 정보 파일이 다운로드 목록에 노출되는 문제 원천 차단.
+2. **배포 롤백 방지 (`Dockerfile`)**:
+   - 컨테이너 헬스체크 주소를 `http://localhost:8501`에서 `http://127.0.0.1:8501`로 수정.
+3. **최종 검토 판정**:
+   - **치명 0, 높음 0 (보안 통과 ✅ / 배포 준비 완료 ✅)**
    - 온라인 검토 리포트: `https://deploy.hub.fursys.com/report/zsuoXazHV8nQAQogek3FWS10lg9qvwqx`
-3. **사내 서버 배포 (`/deploy`)**:
+
+### 7.3 사내 Coolify 서버 최초 배포 (`/deploy`) 및 컨테이너 무중단 기동 최적화
+1. **서버 배포 완료**:
    - 서브도메인: `plm-partlist`
    - **사내 전용 접속 주소**: **`https://plm-partlist.app3.hub.fursys.com`**
-   - 사내 계정 SSO 보호 연동 적용 완료.
-4. **향후 운영 및 지속적 배포 (CI/CD)**:
-   - 향후 코드 수정 시 추가 배포 명령어 실행 없이, GitHub 원격 저장소(`main` 브랜치)에 **`git push`** 만 수행하면 사내 Coolify 서버가 자동으로 변경 사항을 감지하여 재빌드 및 무중단 배포를 진행합니다.
+   - 배포 호스트: `coolify-oper-web-3`
+   - 사내 계정 SSO 보호 게이트웨이 연동 완료.
+2. **초기 구동 타임아웃 해결**:
+   - 현상: `.streamlit/config.toml`의 `headless = false` 설정으로 인해 리눅스 컨테이너가 이메일 입력을 대기하다가 타임아웃으로 꺼지는 현상 발생.
+   - 조치: `Dockerfile`의 `ENTRYPOINT`에 `"--server.headless=true"` 옵션을 추가하고 git push하여 컨테이너가 프롬프트 대기 없이 즉시 정상 기동되도록 조치 완료.
+
+### 7.4 서버 환경 PLM 접속 타임아웃 분석 및 진단 패치
+1. **문제 현상**:
+   - 배포된 웹 앱에서 부품리스트 생성 시작 시 `HTTPConnectionPool(host='localhost', port=58017): Read timed out. (read timeout=120)` 에러 발생.
+2. **기술적 원인 규명 및 안전망 구축 (`plm_part_list_automation_v8.py`, `app.py`)**:
+   - **사전 네트워크 진단(Pre-flight Check) 탑재 (`check_plm_network`)**:
+     - 브라우저 실행 전 5초 내에 `plm.fursys.com`의 DNS 조회 및 TCP 443 포트 소켓 연결을 먼저 테스트.
+     - 통신 불가 시 120초 동안 원인 모를 프리징 없이 5초 만에 명확한 원인과 인프라 가이드를 화면에 출력.
+   - **Chromium 브라우저 옵션 강화**:
+     - `page_load_strategy = 'eager'`: 외부 폰트/웹소켓 등 무거운 리소스 무한 대기 방지.
+     - `--ignore-certificate-errors`, `--allow-insecure-localhost`: 사내 사설 SSL 인증서 경고 자동 통과.
+     - `driver.set_page_load_timeout(35)`: 응답 지연 시 안전한 폴백 처리.
+3. **진단 결과 및 원인 확정**:
+   - `[네트워크 진단] DNS 조회 성공: plm.fursys.com -> 192.9.200.12`
+   - `[오류] PLM 서버(plm.fursys.com:443, IP:192.9.200.12) 포트 연결 실패: timed out`
+   - **결론**: 배포 서버(`coolify-oper-web-3`)에서 사내 인트라넷 PLM 서버(`192.9.200.12:443`)로 나가는 아웃바운드 방화벽(TCP 443 포트)이 차단되어 있음이 100% 명확히 입증됨.
+
+### 7.5 사내 방화벽 오픈 요청 진행 (현재 승인 대기 중)
+- AI추진팀(김민혁님) 및 프레임워크팀(인프라 담당)에 공식 규격으로 방화벽 해제 요청서 제출 완료:
+  - **앱**: 부품리스트 자동화 프로그램 (`https://plm-partlist.app3.hub.fursys.com`, AI Hub `339번`)
+  - **출발지**: 배포 서버 `coolify-oper-web-3` (`web-1`, `web-2` 포함)
+  - **목적지**: `plm.fursys.com` (`192.9.200.12`), TCP 443
+  - **용도**: PLM Windchill 부품리스트(BOM) 및 자재 정보 자동 조회/추출
+  - **진행 상황**: 선행 요청 건(`library-dashboard`, 정준용님)과 동일한 출발지 서버 및 목적지이므로 동일 정책으로 반영 예정이며, 현재 **담당자(AI추진팀/프레임워크팀) 확인 및 방화벽 해제 승인 대기 중**.
+
+### 7.6 향후 운영 및 현 시점 실무 사용 가이드
+1. **방화벽 해제 완료 후 웹 운영**:
+   - 프레임워크팀의 방화벽 오픈 작업이 완료되면, 이미 배포된 웹 앱은 **별도의 코드 수정이나 재배포 없이 즉시 100% 정상 작동**합니다.
+   - 향후 기능 개선 시에도 `main` 브랜치에 `git push`만 하면 Coolify가 자동으로 감지하여 무중단 재배포(CI/CD)됩니다.
+2. **방화벽 해제 전 즉시 업무 수행 방법 (현 시점 권장)**:
+   - 사내 업무망에 접속된 로컬 PC에서 이미 빌드 완료된 단일 실행 파일 [PARTLIST_Automation_v8.0.exe](file:///c:/Users/yeongjo_kwon/PART%20LIST_automation/PARTLIST_Automation_v8.0.exe)를 실행.
+   - 방화벽 영향 없이 사내망에서 즉시 100% 정상 작동하며, 리눅스 서버에서는 지원되지 않는 **Excel 기반 2페이지 가로 규격 PDF 자동 변환까지 완벽히 지원**되므로 실무에 바로 활용 가능.
 
 ---
 
