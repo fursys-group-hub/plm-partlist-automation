@@ -30,6 +30,34 @@ from plm_part_list_generator_v8 import (
 )
 
 
+def check_plm_network(host="plm.fursys.com", port=443, timeout=5):
+    """
+    서버 환경에서 PLM 접근 가능 여부 사전 진단 (DNS 조회 및 TCP 443 포트 연결)
+    """
+    import socket
+    print(f"  [네트워크 진단] '{host}:{port}' 연결 상태 확인 중...")
+    
+    # 1. DNS 조회
+    try:
+        ip = socket.gethostbyname(host)
+        print(f"  [네트워크 진단] DNS 조회 성공: {host} -> {ip}")
+    except Exception as e:
+        err_msg = f"PLM 서버({host}) DNS 조회 실패: {e}"
+        print(f"  [오류] {err_msg}")
+        return False, err_msg
+        
+    # 2. TCP 포트 연결 확인 (방화벽/망분리 확인)
+    try:
+        sock = socket.create_connection((ip, port), timeout=timeout)
+        sock.close()
+        print(f"  [네트워크 진단] TCP 포트({port}) 연결 성공!")
+        return True, f"정상 연결 (IP: {ip}:{port})"
+    except Exception as e:
+        err_msg = f"PLM 서버({host}:{port}, IP:{ip}) 포트 연결 실패 (사내망 방화벽 차단 또는 라우팅 불가): {e}"
+        print(f"  [오류] {err_msg}")
+        return False, err_msg
+
+
 def setup_driver(browser=None, headless=None):
     """
     브라우저 드라이버 초기화:
@@ -45,12 +73,15 @@ def setup_driver(browser=None, headless=None):
     if browser == 'edge' and not is_linux:
         try:
             options = webdriver.EdgeOptions()
+            options.page_load_strategy = 'eager'
+            options.add_argument('--ignore-certificate-errors')
             if headless:
                 options.add_argument('--headless=new')
                 options.add_argument('--disable-gpu')
                 options.add_argument('--window-size=1920,1080')
             service = EdgeService()
             driver = webdriver.Edge(service=service, options=options)
+            driver.set_page_load_timeout(35)
             if not headless:
                 driver.maximize_window()
             print("[드라이버] Microsoft Edge 사용")
@@ -62,6 +93,13 @@ def setup_driver(browser=None, headless=None):
 
     # Chrome
     options = webdriver.ChromeOptions()
+    options.page_load_strategy = 'eager'
+    options.add_argument('--ignore-certificate-errors')
+    options.add_argument('--ignore-ssl-errors')
+    options.add_argument('--allow-insecure-localhost')
+    options.add_argument('--disable-blink-features=AutomationControlled')
+    options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+    
     if headless:
         options.add_argument('--headless=new')
         options.add_argument('--no-sandbox')
@@ -82,9 +120,10 @@ def setup_driver(browser=None, headless=None):
         service = ChromeService(ChromeDriverManager().install())
 
     driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(35)
     if not headless:
         driver.maximize_window()
-    print(f"[드라이버] Google Chrome 사용 (headless={headless})")
+    print(f"[드라이버] Google Chrome 사용 (headless={headless}, pageLoadStrategy=eager)")
     return driver
 
 
@@ -142,8 +181,12 @@ def login(driver, url, username, password):
     if parsed.fragment: auth_url += f"#{parsed.fragment}"
 
     print(f"  -> 페이지 요청: {url}")
-    driver.get(auth_url)
-    print(f"  -> 페이지 요청 완료")
+    try:
+        driver.set_page_load_timeout(35)
+        driver.get(auth_url)
+        print(f"  -> 페이지 요청 완료")
+    except Exception as e:
+        print(f"  [안내] 페이지 로드 응답 지연({e}), 로드된 DOM 상태에서 계속 진행...")
 
     print("  -> 메인 페이지 로드 대기 중 (최대 20초)...")
     main_loaded = False

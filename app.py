@@ -12,7 +12,7 @@ import time
 from urllib.parse import urlparse
 
 # Selenium & Generator import
-from plm_part_list_automation_v8 import setup_driver, login, process_single_code
+from plm_part_list_automation_v8 import setup_driver, login, process_single_code, check_plm_network
 from plm_part_list_generator_v8 import collect_parts_v8, generate_part_list_excel_v3
 
 # Streamlit Page Config
@@ -303,6 +303,19 @@ if start_clicked:
             
             log_msg("[2/4] PLM 시스템 자동 로그인 시도 중...")
             PLM_URL = "https://plm.fursys.com/Windchill/platform/main#"
+            
+            # 사전 네트워크 진단 (Coolify 배포 서버 -> PLM 서버 통신 가능 여부)
+            net_ok, diag_msg = check_plm_network("plm.fursys.com", 443, timeout=5)
+            log_msg(f"  -> 네트워크 진단: {diag_msg}")
+            if not net_ok:
+                raise ConnectionError(
+                    f"사내 배포 서버에서 PLM 서버(plm.fursys.com:443)로의 네트워크 연결이 불가능합니다.\n"
+                    f"상세 사유: {diag_msg}\n"
+                    f"💡 원인 분석 및 조치 방안:\n"
+                    f"1. Coolify 배포 서버(10.x / 클라우드 환경)에서 사내 인트라넷 PLM 서버(192.9.200.12)로의 아웃바운드 443 포트 방화벽 오픈(또는 사내망 VPN/라우팅)이 필요합니다.\n"
+                    f"2. 사내 IT/인프라팀에 'Coolify 서버 -> PLM 서버(192.9.200.12:443) 통신 허용'을 요청하시거나, 로컬 PC용 'PARTLIST_Automation_v8.0.exe'를 사용해 주세요."
+                )
+
             login(driver, PLM_URL, plm_id, plm_pw)
             log_msg("-> PLM 로그인 단계 완료!")
             
